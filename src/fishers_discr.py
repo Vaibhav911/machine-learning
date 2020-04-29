@@ -126,6 +126,16 @@ def find_gauss_inter(m1,m2,std1,std2):
     # Calculate root of quadratic equation with coeff a, b, c
     return np.roots([a,b,c])
 
+def plot_pnts_linear(class0_transformed, class1_transformed):
+    """
+    Plot the transformed points on a line.
+    """
+    plt.plot(class0_transformed, 
+             [0 for pnt in range(len(class0_transformed))], 'g*')
+    
+    plt.plot(class1_transformed, 
+             [0 for pnt in range(len(class0_transformed))], 'ro')
+
 def plot_intersection(m1, std1, m2, std2):
     """
     Plot the points obtained by the intersection of two 
@@ -151,19 +161,44 @@ def calc_accuracy(data, wts, split_pnt):
     """
     Given a dataset and weights, transforms the points to
     1 dimensional space, and based on intersection point,
-    returns the accuracy of given weights and split_pnt.
+    returns the accuracy, precision, recall and f-score
+    of given weights and split_pnt.
     """
     correct_predictions = 0
+    pos_examples = 0
+    pos_predictions = 0
+    true_pos = 0
+    
     for index, point in data.iterrows():
+        # Calculate number of positive examples in the dataset.
+        if int(point['label']) == 0:
+            pos_examples += 1
+            
         Xn = pd.DataFrame({0: point[['x', 'y']]})
         # Transform points to 1-D space.
         transformed = wts.transpose().dot(Xn)[0][0]
+        
+        prediction = predict(split_pnt, transformed)
+        
         # If predicted output is same as actual output
         # then increase correct predictions.
-        if predict(split_pnt, transformed) == int(point['label']):
+        if prediction == int(point['label']):
             correct_predictions += 1
             
-    return correct_predictions / len(data)
+        # Calculate number of positive predictions.
+        if prediction == 0:
+            pos_predictions += 1
+        
+        # Calculate True positives.
+        if prediction == 0 and int(point['label']) == 0:
+            true_pos += 1    
+            
+    accuracy = correct_predictions / len(data)
+    precision = true_pos / pos_predictions
+    recall = true_pos / pos_examples
+    f_score = (2 * precision * recall) / (precision + recall)
+    
+    return accuracy, precision, recall, f_score
 
 def main():
     #calculations for data set 1
@@ -175,12 +210,13 @@ def main():
     (mean2, std2) = plot_norm_dist(c2_pnts)
     
     plot_intersection(mean1, std1, mean2, std2)
+    plot_pnts_linear(c1_pnts, c2_pnts)
     plt.savefig("./../graphs/fischers_discr_data_1.png")
     plt.show()
     
     intersection = find_gauss_inter(mean1, mean2, std1, std2)
     acc = calc_accuracy(data_1_test, wts, intersection[1])
-    print("Accuracy Data 1: ", acc)
+    print("Data 1 - Accuracy, precision, recall, f-score : ", acc)
     
     #calculations for data set 2
     wts = calc_wts(data_2_train)
@@ -191,12 +227,13 @@ def main():
     (mean2, std2) = plot_norm_dist(c2_pnts)
     
     plot_intersection(mean1, std1, mean2, std2)
+    plot_pnts_linear(c1_pnts, c2_pnts)
     plt.savefig("./../graphs/fischers_discr_data_2.png")
     plt.show()
     
     intersection = find_gauss_inter(mean1, mean2, std1, std2)
     acc = calc_accuracy(data_2_test, wts, intersection[1])
-    print("Accuracy Data 2: ", acc)
+    print("Data 2 - Accuracy, precision, recall, f-score  ", acc)
     return 0
     
 if __name__ == "__main__":
