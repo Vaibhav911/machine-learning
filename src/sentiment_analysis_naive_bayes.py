@@ -101,8 +101,8 @@ def predict_class(sentence, class1_dict, class2_dict, class1_len, class2_len):
 def calc_accur(data, class1_dict, class2_dict, class1_len, class2_len):
     """
     Iterates over test dataset, and calculates number of correct 
-    predictions and returns ratio of correct predictions upon 
-    total number of predictions.
+    predictions and calculates accuracy, precision, recall and f-score.
+    Returns accuracy and f-score finally.
     """
     correct_predictions = 0
     pos_examples = 0
