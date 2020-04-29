@@ -68,7 +68,7 @@ def predict_class(sentence, class1_dict, class2_dict, class1_len, class2_len):
     Given a sentence (as list of words) and dictionary of words for     
     both classes, it calculates probability of sentence belonging 
     to each class using naive bayes, and predicts the class of 
-    given sentence.
+    given sentence. This uses laplacian smoothening.
     """
     # Prior probability of both classes.
     prob1 = class1_len / (class1_len + class2_len)
@@ -78,18 +78,18 @@ def predict_class(sentence, class1_dict, class2_dict, class1_len, class2_len):
     for word in sentence:
         # Calculates probability that word belongs to class 1
         if class1_dict.get(word):
-            prob1 *= class1_dict[word] / class1_len
+            prob1 *= (1 + class1_dict[word]) / class1_len
         else:
             # If word doesn't belong to this class, instead of 
             # multiplying with 0, penalize probability with 
             # below value.
-            prob1 *= 1 / (class1_len)**2
+            prob1 *= 1 / (class1_len)
             
         # Calculates probability that word belongs to class 2
         if class2_dict.get(word):
-            prob2 *= class2_dict[word] / class2_len
+            prob2 *= (1 + class2_dict[word]) / class2_len
         else:
-            prob2 *= 1 / (class2_len)**2
+            prob2 *= 1 / (class2_len)
     
     # Below line can be used to print details about predictions
     # of each sentence.
@@ -105,11 +105,35 @@ def calc_accur(data, class1_dict, class2_dict, class1_len, class2_len):
     total number of predictions.
     """
     correct_predictions = 0
+    pos_examples = 0
+    pos_predictions = 0
+    true_pos = 0
+    
     for row in data:
-        if predict_class(row[0], class1_dict, class2_dict, class1_len, class2_len) == row[1]:
+        # Calculate number of positive examples
+        if row[1] == 0:
+            pos_examples += 1
+        
+        prediction = predict_class(row[0], class1_dict,
+                                   class2_dict, class1_len, class2_len)
+        # Calculate number of correct predictions
+        if prediction == row[1]:
             correct_predictions += 1
 
-    return correct_predictions / len(data)
+        # Calulate number of positive predictions
+        if prediction == 0:
+            pos_predictions += 1
+            
+        # Calculate True positive predictions
+        if prediction == 0 and prediction == row[1]:
+            true_pos += 1
+            
+    accuracy = correct_predictions / len(data)
+    precision = true_pos / pos_predictions
+    recall = true_pos / pos_examples
+    f_score = (2 * precision * recall) / (precision + recall)
+    
+    return accuracy, f_score
 
 def k_fold_cross_valid(data, k):
     """
@@ -124,6 +148,7 @@ def k_fold_cross_valid(data, k):
     
     # Output to be returned
     accuracies = []
+    f_scores = []
     
     for iteration in range(k):
         #Prepare mask to seperate test and training data set
@@ -136,10 +161,11 @@ def k_fold_cross_valid(data, k):
         
         # Prepare the dictionaries to be used for predicting class
         class1_dict, class2_dict, class1_len, class2_len = create_dict(train_data)
-        accuracy = calc_accur(test_data, class1_dict, class2_dict, class1_len, class2_len)
-        accuracies.append(accuracy)
+        results = calc_accur(test_data, class1_dict, class2_dict, class1_len, class2_len)
+        accuracies.append(results[0])
+        f_scores.append(results[1])
         
-    return accuracies
+    return accuracies, f_scores
     
 
 def main():
@@ -151,9 +177,16 @@ def main():
     
     k = 5
     accuracies = k_fold_cross_valid(data, k)
-    mean = np.array(accuracies).mean()
-    std = np.array(accuracies).std()
-    print(u"%s \u00B1 %s" % (round(mean, 3), round(std, 3)))
+    
+    mean_acc = np.array(accuracies[0]).mean()
+    std_acc = np.array(accuracies[0]).std()
+    
+    mean_f_score = np.array(accuracies[1]).mean()
+    std_f_score = np.array(accuracies[1]).std()
+    
+    print("Accuracy:", u"%s \u00B1 %s" % (round(mean_acc, 3), round(std_acc, 3)))
+    print("F-score :", u"%s \u00B1 %s" % (round(mean_f_score, 3), round(std_f_score, 3)))
+    
     return 0
             
 if __name__ == "__main__":
